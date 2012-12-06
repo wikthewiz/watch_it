@@ -1,0 +1,34 @@
+# Each rule in [folder] will be applied on watch dir.
+
+[folder]
+# The comma seperated list of directories to watch.
+watch_dir="/home/likewise-open/CONSEO/mawi/work/code/c/watch_it/test, /home/likewise-open/CONSEO/mawi/work/code/c/watch_it/test2" 
+
+# True means it will fire events on every time the folder watch_dir is effected
+watch_the_dir=false
+
+# False means it will not fire events on when content of watch_dir is effected
+watch_content=true
+
+# can be any of inotify events: IN_ACCESS, IN_ATTRIB, IN_CLOSE_WRITE 
+#                               IN_CLOSE_NOWRITE, IN_CREATE, IN_DELETE 
+#                               IN_DELETE_SELF, IN_MODIFY, IN_MOVE_SELF
+#                               IN_MOVED_FROM, IN_MOVED_TO, IN_OPEN,
+#                               IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, IN_ONLYDIR
+# (For description of inotify events see: http://linux.die.net/man/7/inotify)
+# or one of:
+#    START_OF_READ	this will fire once on starting to read
+fire_on="IN_ACCESS|IN_CLOSE"
+
+# min_read_close is the minimun time in milliseconds between read and a close
+# event that must elapse before firing an read event. This is because when 
+# just open an directory all files are read and then close. So if you want 
+# these events as well you must set this to 0.
+# an example:
+#  A file is read and close in under min_read_close -> This will not fire
+min_read_close=500 ; time in milleseconds
+
+recursive=false ; if set to true it will recursively watch all contents
+
+[file]
+file_list="";
