@@ -1,4 +1,4 @@
 watch_it
 ========
 
-A Linux tool for executing a command when some one reads or opens a file. 
+A Linux tool for executing a command on read or open of a file. 
