@@ -1,6 +1,10 @@
 # Test stuff
 test*
 Debug
+config
+
+#vim
+*.swp
 
 # Object files
 *.o
