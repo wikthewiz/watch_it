@@ -164,8 +164,8 @@ void *consumer(void *arg)
 		{
 			struct timespec timeToWait;
 			int rt;
-			gettimeofday(&now,NULL);
-			timeToWait.tv_sec = now.tv_sec + 1;
+//			gettimeofday(&now,NULL);
+//			timeToWait.tv_sec = now.tv_sec + 1;
 			printf("WAITING");
 			pthread_cond_timedwait( &wait_cond, &mutex ,&timeToWait);
 			printf("WOKE_UP");

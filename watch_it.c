@@ -28,7 +28,11 @@ void handle_error (int error);
 
 int begin_watch(const struct conf * const config);
 
-int add_to_map(const char * const to_be_watched, int wd, int type);
+int add_to_map(const char * const to_be_watched,
+				 int wd,
+				 int type,
+				 int min_read_close);
+
 WD_NAME_TUPLE* find_in_map(int wd);
 
 void init_name_map();
@@ -128,7 +132,10 @@ int begin_watch(const struct conf * const config)
 			return -1;
 		}
 
-		if (add_to_map(config->watch_dir[i],wd,config->type))
+		if (add_to_map(config->watch_dir[i],
+					   wd,
+					   config->type,
+					   config->min_read_close))
 		{
 			return -1;
 		}
