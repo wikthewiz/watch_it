@@ -12,17 +12,18 @@
 
 typedef struct
 {
-	int id;
+	int id; // This is an unique id for each item that is watched: i.e.
+			// use this to distinguish between files in directories
 	char *name;
 	int event_type;
 	int min_read_close;
-	double timestamp;
+	long int timestamp;
 } EVENT;
 
 int event_handling_add_event(EVENT *event);
 int event_handling_notify();
 int event_handling_init();
-
+long int event_handling_get_tick();
 
 
 #endif /* EVENT_HANDLING_H_ */

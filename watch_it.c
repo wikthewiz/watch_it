@@ -7,7 +7,6 @@
 #include <sys/inotify.h>
 #include "config.h"
 #include "event_handling.h"
-#include <time.h>
 
 
 typedef struct
@@ -18,23 +17,17 @@ typedef struct
 	int min_read_close;
 } WD_NAME_TUPLE;
 
-
-
 static WD_NAME_TUPLE name_map[MAX_WATCH];
 static int name_map_len = 0;
 
 void get_event (int fd);
 void handle_error (int error);
-
 int begin_watch(const struct conf * const config);
-
 int add_to_map(const char * const to_be_watched,
 				 int wd,
 				 int type,
 				 int min_read_close);
-
 WD_NAME_TUPLE* find_in_map(int wd);
-
 void init_name_map();
 void init_wd_name_tuple(WD_NAME_TUPLE *tuple);
 
@@ -223,80 +216,16 @@ void get_event (int fd)
 			strcpy (event_name, tuple->name);
 		}
 
-		clock_t c1;
-		c1 = clock();
-		if (c1 < 0){
-			fprintf(stderr,"clock() failed. Skip this event!");
-			continue;
-		}
-
 		event.id = pevent->wd;
 		event.name = event_name;
 		event.min_read_close = tuple->min_read_close;
-		event.timestamp = c1 / CLOCKS_PER_SEC;
+		event.timestamp = event_handling_get_tick();
 		event.event_type = pevent->mask;
 
 		if (event_handling_add_event(&event)){
 			fprintf(stderr,"failed to add event!");
 			return;
 		}
-		/*
-		 * //		if (pevent->mask & IN_ACCESS)
-//		{
-//			strcat(action, " was read");
-//		}
-//		if (pevent->mask & IN_CLOSE_NOWRITE)
-//		{
-//			strcat(action, " not opened for writing was closed");
-//		}
-//		if (pevent->mask & IN_OPEN)
-//		{
-//			strcat(action, " was opened");
-//		}
-//		if (pevent->mask & IN_ATTRIB)
-//		{
-//			strcat(action, " Metadata changed");
-//		}
-//		if (pevent->mask & IN_CLOSE_WRITE)
-//		{
-//			strcat(action, " opened for writing was closed");
-//		}
-//		if (pevent->mask & IN_CREATE)
-//		{
-//			strcat(action, " created in watched directory");
-//		}
-//		if (pevent->mask & IN_DELETE)
-//		{
-//			strcat(action, " deleted from watched directory");
-//		}
-//		if (pevent->mask & IN_DELETE_SELF)
-//		{
-//			strcat(action, "Watched file/directory was itself deleted");
-//		}
-//		if (pevent->mask & IN_MODIFY)
-//		{
-//			strcat(action, " was modified");
-//		}
-//		if (pevent->mask & IN_MOVE_SELF)
-//		{
-//			strcat(action, "Watched file/directory was itself moved");
-//		}
-//		if (pevent->mask & IN_MOVED_FROM)
-//		{
-//			strcat(action, " moved out of watched directory");
-//		}
-//		if (pevent->mask & IN_MOVED_TO)
-//		{
-//			strcat(action, " moved into watched directory");
-//		}
-
-		 *
-      printf ("wd=%d mask=%#x cookie=%d len=%d dir=%s\n\n",
-              pevent->wd, pevent->mask, pevent->cookie, pevent->len,
-              (pevent->mask & IN_ISDIR)?"yes":"no");
-		 */
-//		if (pevent->len) printf ("name=%s\n", pevent->name);
-//		printf("the action: %s \n",event_name);
 	}
 
 }
