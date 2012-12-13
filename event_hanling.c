@@ -36,6 +36,24 @@ static pthread_cond_t  wait_cond = PTHREAD_COND_INITIALIZER;
 static int signaled;
 void *consumer();
 
+static inline int equals_event(EVENT *e1, EVENT *e2)
+{
+	return e1->id == e2->id && !strcmp(e1->name,e2->name);
+}
+
+/**
+ * checks if e1 is before (in time) then e2
+ */
+static inline int is_before(EVENT *e1, EVENT *e2)
+{
+	return e1->timestamp < e2->timestamp;
+}
+
+static inline int is_close(EVENT *other)
+{
+	return (other->event_type & IN_CLOSE);
+}
+
 long int event_handling_get_tick()
 {
 	struct timeval now;
@@ -119,24 +137,6 @@ void print_list()
 	printf("]\n");
 }
 
-int equals_event(EVENT *e1, EVENT *e2)
-{
-	return e1->id == e2->id && !strcmp(e1->name,e2->name);
-}
-
-EVENT_LIST* list_get(EVENT *event, int of_type){
-	EVENT_LIST *tmp;
-	struct list_head *pos;
-	list_for_each(pos, &event_list.list){
-		tmp = list_entry(pos, EVENT_LIST, list);
-		if (equals_event(tmp->element,event) &&
-			(tmp->element->event_type & of_type)){
-			return tmp;
-		}
-	}
-	return NULL;
-}
-
 void execute_event(EVENT *event)
 {
 	if (event->event_type & IN_CLOSE)
@@ -149,15 +149,47 @@ void execute_event(EVENT *event)
 	}
 }
 
-int is_time_to_fire(EVENT_LIST *cur, int delta_time)
+static inline int is_time_to_fire(EVENT_LIST *cur, int delta_time)
 {
 	return delta_time > cur->element->min_read_close;
+}
+
+EVENT_LIST* find_earliest_close_event(EVENT *e)
+{
+	EVENT_LIST *tmp;
+	struct list_head *pos;
+	EVENT_LIST *earliest = NULL;
+
+	list_for_each(pos, &event_list.list){
+		tmp = list_entry(pos, EVENT_LIST, list);
+		if (!tmp->remove)
+		{
+			if (equals_event(e,tmp->element) &&
+				is_close(tmp->element)&&
+				is_before(e,tmp->element))
+			{
+				if (earliest != NULL )
+				{
+					if (is_before(tmp->element,earliest->element))
+					{
+						earliest = tmp;
+					}
+				}
+				else
+				{
+					earliest = tmp;
+				}
+			}
+		}
+	}
+	return earliest;
 }
 
 void filter_before_execute(EVENT_LIST *cur)
 {
 	EVENT_LIST *close_event;
-	if ((close_event = list_get(cur->element, IN_CLOSE)))
+
+	if ((close_event = find_earliest_close_event(cur->element)))
 	{
 		long int delta = (cur->element->timestamp -
 						   close_event->element->timestamp)/10;
@@ -167,10 +199,8 @@ void filter_before_execute(EVENT_LIST *cur)
 			printf("has close ");
 			execute_event(cur->element);
 		}
-		else
-		{
-			close_event->remove = 1;
-		}
+
+		close_event->remove = 1;
 		cur->remove = 1;
 	}
 	else
