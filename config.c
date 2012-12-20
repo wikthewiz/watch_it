@@ -118,11 +118,15 @@ int load_fire_on(dictionary* dict, struct conf* config)
 		}
 		else if (equals(pch, "END_OF_WRITE"))
 		{
-			config->fire_on |= START_OF_WRITE;
+			config->fire_on |= IN_CLOSE_WRITE;
+			config->fire_on |= IN_DELETE;
+			config->fire_on |= IN_DELETE_SELF;
 		}
 		else if (equals(pch, "END_OF_READ"))
 		{
 			config->fire_on |= IN_CLOSE_NOWRITE;
+			config->fire_on |= IN_DELETE;
+			config->fire_on |= IN_DELETE_SELF;
 		}
 		else
 		{

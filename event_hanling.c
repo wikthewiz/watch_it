@@ -30,8 +30,8 @@ typedef struct
 	int id; // This is an unique id for each item that is watched: i.e.
 			// use this to distinguish between files in directories
 	char *name;
-	long int open_timestamp; /*The time stamp it was opend*/
-	long int close_timestamp; /*The time stamp it was opend*/
+	long unsigned int open_timestamp; /*The time stamp it was opend*/
+	long unsigned int close_timestamp; /*The time stamp it was opend*/
 	int is_closed;
 	int has_fired_open;
 	int has_fired_closed;
@@ -63,34 +63,48 @@ static inline int is_close_event(EVENT *other)
 {
 	return (other->event_type & IN_CLOSE) ||
 			(other->event_type & IN_CLOSE_NOWRITE) ||
-			(other->event_type & IN_CLOSE_WRITE);
+			(other->event_type & IN_CLOSE_WRITE) ||
+			(other->event_type & IN_DELETE) ||
+			(other->event_type & IN_DELETE_SELF);
 }
 
-static inline long int calc_open_delta(FILE_LIST* orig)
+static inline long unsigned int calc_open_delta(FILE_LIST* orig)
 {
-	long int cur_tick = event_handling_get_tick();
+	long unsigned int cur_tick = event_handling_get_tick();
 	if (orig == NULL || orig->file == NULL)
 	{
 		fprintf(stderr,"NULL error in calc_open_delta");
 		return 0;
 	}
+
 	if (cur_tick < orig->file->open_timestamp )
 	{
-		fprintf(stderr,"cur_tick is before timestamp in method calc_open_delta");
+		fprintf(stderr,"cur_tick is before timestamp: calc_open_delta\n");
+		return 0;
 	}
 
 	long unsigned int val = cur_tick - orig->file->open_timestamp ;
-	printf("(cur_tick - timestamp): (%lu - %lu) = %lu \n",
-			cur_tick,
-			orig->file->open_timestamp,
-			val);
-
 	return val;
 }
 
-static inline long int calc_close_delta(FILE_LIST* orig)
+static inline long unsigned int calc_close_delta(FILE_LIST* orig)
 {
-	return ( event_handling_get_tick() - orig->file->close_timestamp);
+	long unsigned int cur_tick = event_handling_get_tick();
+
+	if (orig == NULL || orig->file == NULL)
+	{
+		fprintf(stderr,"NULL error in calc_close_delta");
+		return 0;
+	}
+
+	if (cur_tick < orig->file->close_timestamp )
+	{
+		fprintf(stderr,"cur_tick is before timestamp: calc_close_delta\n");
+		return 0;
+	}
+
+	long unsigned int val = cur_tick - orig->file->close_timestamp ;
+	return val;
 }
 
 static inline int has_open_past_delay(FILE_LIST *orig)
@@ -98,9 +112,14 @@ static inline int has_open_past_delay(FILE_LIST *orig)
 	return calc_open_delta(orig) > max_delay_before_fire;
 }
 
+static inline int is_valid_close(FILE_LIST *orig)
+{
+	return orig->file->close_timestamp != 	 UINT32_MAX;
+}
+
 static inline int has_close_past_delay(FILE_LIST *orig)
 {
-	if (orig->file->close_timestamp < 0) return 0;
+	if (!is_valid_close(orig)) return 0;
 	return calc_close_delta(orig) > max_delay_before_fire;
 }
 
@@ -120,24 +139,62 @@ static inline int is_file_closed(FILE_LIST *other)
 	return other->file->is_closed;
 }
 
-static inline void copy_event_to_file(EVENT *e, FILE_EVENT *f)
+static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 {
 	f->name = e->name;
 	f->id = e->id;
+	if (is_close_event(e))
+	{
+		if (f->close_timestamp != UINT32_MAX &&
+			e->timestamp < f->open_timestamp )
+		{
+			fprintf(stderr,"trying to set a cose_timestamp that is before open!");
+		}
+
+		f->close_timestamp = e->timestamp;
+	}
+	else if (is_open_event(e))
+	{
+		if (f->close_timestamp != UINT32_MAX &&
+			f->close_timestamp < e->timestamp )
+		{
+			fprintf(stderr,"trying to set a open_timestamp that is after close!");
+		}
+		f->open_timestamp = e->timestamp;
+	}
+	else
+	{
+		fprintf(stderr,"FAILED to copy event to a file");
+		return -1;
+	}
+	return 0;
 }
 
-static inline void close_file(FILE_LIST *file_to_close)
+static inline void close_file(FILE_LIST *file_to_close,
+								 long unsigned int timestamp)
 {
+	if (file_to_close->file->open_timestamp > timestamp)
+	{
+		fprintf(stderr, "trying to set a cose_timestamp that is before open!");
+	}
+
 	file_to_close->file->is_closed = 1;
-	file_to_close->file->close_timestamp = event_handling_get_tick();
+	file_to_close->file->close_timestamp = timestamp;
 }
 
-static inline void open_file(FILE_LIST *file_to_open, long int timestamp)
+static inline void reset_to_open(FILE_LIST *file_to_open,
+								long unsigned int timestamp)
 {
+	if (file_to_open->file->close_timestamp == UINT32_MAX)
+	{
+		fprintf(stderr, "trying to reset file that has not been closed!?!?");
+	}
 	file_to_open->file->is_closed = 0;
+	file_to_open->file->close_timestamp = UINT32_MAX;
 	file_to_open->file->open_timestamp = timestamp;
 }
 
+static long unsigned int last_tick;
 long unsigned int event_handling_get_tick()
 {
 	struct timespec start;
@@ -148,18 +205,41 @@ long unsigned int event_handling_get_tick()
 					     event_handling_get_tick. Error code: %i", errCode);
 		return 0;
 	}
-	return (double)start.tv_nsec / (double)1000000;
+
+	long int cur_tick = ((long int)start.tv_sec * 1000000) +
+								(long int)start.tv_nsec / 1000000;
+
+	if (last_tick > cur_tick)
+	{
+		fprintf(stderr,"FAILED last_tick is greater then cur tick!!");
+		last_tick = cur_tick;
+		return 0;
+	}
+
+	last_tick = cur_tick;
+	return last_tick;
 }
 
-int init_file(FILE_EVENT *f, char *name, int id)
+int init_file(FILE_EVENT *f,
+				char *name,
+				int id,
+				long unsigned int timestamp)
 {
-	if (!(strcpy(f->name,name)))
+	if (name != NULL )
 	{
-		return -1;
+		if (!(strcpy(f->name, name)))
+		{
+			return -1;
+		}
 	}
+	else
+	{
+		f->name = NULL;
+	}
+
 	f->id = id;
-	f->open_timestamp = event_handling_get_tick();
-	f->close_timestamp = -1;
+	f->open_timestamp = timestamp;
+	f->close_timestamp = UINT32_MAX;
 	f->has_fired_closed = 0;
 	f->has_fired_open = 0;
 	f->is_closed = 0;
@@ -181,7 +261,7 @@ FILE_EVENT* allocate_file(FILE_EVENT *info)
 		return NULL;
 	}
 
-	if (init_file(file,info->name,info->id))
+	if (init_file(file, info->name, info->id, info->open_timestamp))
 	{
 		free(file->name);
 		free(file);
@@ -225,14 +305,6 @@ void remove_from_list(FILE_LIST *fl)
 	deallocate_file_list(fl);
 }
 
-//void print_event(EVENT *event)
-//{
-//	printf("{%s,%d,%s},",
-//			event->name,
-//			event->id,
-//			event->event_type & IN_CLOSE ? "CLOSE": "OPEN");
-//}
-
 void print_file(FILE_EVENT *file)
 {
 	printf("{%s,%d},",file->name,file->id);
@@ -242,7 +314,7 @@ void print_list()
 {
 	FILE_LIST *tmp;
 	struct list_head *pos;
-	printf("event_list=[");
+	printf("file_event_list=[");
 	list_for_each(pos, &file_event_list.list){
 		tmp= list_entry(pos, FILE_LIST, list);
 		print_file(tmp->file);
@@ -256,7 +328,12 @@ FILE_LIST* find_in_file_list(EVENT *event_find)
 	FILE_LIST *tmp;
 	struct list_head *pos;
 	FILE_EVENT file_to_find;
-	copy_event_to_file(event_find, &file_to_find);
+	init_file(&file_to_find,NULL,0,0);
+
+	if (copy_event_to_file(event_find, &file_to_find))
+	{
+		return NULL;
+	}
 
 	list_for_each(pos, &file_event_list.list)
 	{
@@ -308,14 +385,14 @@ void execute_close_event(FILE_EVENT *f)
 	f->has_fired_closed = 1;
 }
 
-void wait_for_producer(int max_wait_time)
+void wait_for_producer(long unsigned int max_wait_time)
 {
 	struct timespec timeToWait;
 	struct timeval now;
 	int wres = 0;
 	gettimeofday(&now,NULL);
-	printf("wait:%i\n", max_wait_time);
-	timeToWait.tv_sec = now.tv_sec + max_wait_time;
+//	printf("wait:%is\n", max_wait_time/10);
+	timeToWait.tv_sec = now.tv_sec + max_wait_time/10;
 	timeToWait.tv_nsec = 0;
 //	printf("WAITING\n");
 	if ((wres = pthread_cond_timedwait( &wait_cond, &mutex ,&timeToWait)))
@@ -375,41 +452,31 @@ int event_handling_add_event(EVENT *event)
 	FILE_LIST *tmp_file;
 	FILE_EVENT file_to_add;
 	int res;
-	int i;
-//	long int l;
-//	long int c;
-//	l = 0;
-//	c = 0;
-//	for(i = 0; i < 200; ++i)
-//	{
-//		l = event_handling_get_tick();
-//		printf("tick:%li\n",l);
-//
-//		if (l < c)
-//		{
-//			printf("ERRR");
-//		}
-//		c = l;
-//		sleep(rand() % 3);
-//	}
 	res = 0;
 	tmp_file = NULL;
-
+	init_file(&file_to_add,NULL,0,0);
 
 	pthread_mutex_lock( &mutex );
 
 	if (is_close_event(event))
 	{
-		if ((tmp_file = find_in_file_list(event)) &&
-			is_file_open(tmp_file)) // File is open
+		if ((tmp_file = find_in_file_list(event)) && is_file_open(tmp_file)) // File is open
 		{
 			if (has_open_past_delay(tmp_file))
 			{
-				close_file(tmp_file);
+				close_file(tmp_file, event->timestamp);
 			}
 			else
 			{
-				remove_from_list(tmp_file);
+				if (tmp_file->file->has_fired_open)
+				{
+//					fprintf(stderr, "%s has opened but it will now be removed!",
+//							tmp_file->file->name);
+				}
+				else
+				{
+					remove_from_list(tmp_file);
+				}
 			}
 		}
 	}
@@ -417,15 +484,21 @@ int event_handling_add_event(EVENT *event)
 	{
 		if ((tmp_file = find_in_file_list(event)) && is_file_closed(tmp_file)) // File is closed but exists
 		{
-			open_file(tmp_file, event->timestamp);
+			reset_to_open(tmp_file, event->timestamp);
 		}
 		else if (tmp_file == NULL) // File doesn't exists yet
 		{
-			copy_event_to_file(event,&file_to_add);
-			if (add_new_file(&file_to_add))
+			if (copy_event_to_file(event,&file_to_add))
 			{
-				fprintf(stderr,"FAILED to open file. I will skip this!");
-				res = 1;
+				res = -1;
+			}
+			else
+			{
+				if (add_new_file(&file_to_add))
+				{
+					fprintf(stderr, "FAILED to open file. I will skip this!");
+					res = -1;
+				}
 			}
 		}
 	}
@@ -444,9 +517,9 @@ void *consumer(void *arg)
 	int i = 0;
 	FILE_LIST *cur;
 	struct list_head *pos, *q;
-	int cur_wait;
+	long unsigned int cur_wait;
 
-	cur_wait = 600;
+	cur_wait = 6000;
 	cur = NULL;
 	pos = NULL;
 	q = NULL;
@@ -458,7 +531,7 @@ void *consumer(void *arg)
 			wait_for_producer(cur_wait);
 			cur_wait = 600;
 		}
-		printf("start:");
+//		printf("(%i) start:",i);print_list();
 		signaled = 0;
 		list_for_each(pos, &file_event_list.list)
 		{
@@ -485,7 +558,7 @@ void *consumer(void *arg)
 					execute_close_event(cur->file);
 					cur->remove = 1;
 				}
-				else
+				else if (is_valid_close(cur))
 				{
 					if (cur_wait > calc_close_delta(cur))
 					{
@@ -509,7 +582,7 @@ void *consumer(void *arg)
 			}
 		}
 
-		printf("(%i) stop:\n",i);
+//		printf("(%i) stop:",i);print_list();printf("\n\n");
 		signaled = 0;
 		pthread_mutex_unlock( &mutex );
 		i++;
@@ -521,6 +594,7 @@ int event_handling_init(int min_read_close)
 	INIT_LIST_HEAD(&file_event_list.list);
 	max_delay_before_fire = min_read_close;
 	signaled = 0;
+	last_tick = 0;
 	if ( pthread_create( &consumer_thread, NULL, &consumer, NULL) )
 	{
 		fprintf(stderr,"failed to create consumer thread\n");
