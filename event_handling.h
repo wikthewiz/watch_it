@@ -17,13 +17,13 @@ typedef struct
 	char *name;
 	int event_type;
 	int min_read_close;
-	long int timestamp;
+	long unsigned int timestamp;
 } EVENT;
 
 int event_handling_add_event(EVENT *event);
 int event_handling_notify();
 int event_handling_init();
-long int event_handling_get_tick();
+long unsigned int event_handling_get_tick();
 
 
 #endif /* EVENT_HANDLING_H_ */

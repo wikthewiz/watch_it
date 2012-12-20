@@ -36,6 +36,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.865201045" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
 								<option id="gnu.c.link.option.libs.1521257713" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="iniparser"/>
+									<listOptionValue builtIn="false" value="rt"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 								</option>
 								<option id="gnu.c.link.option.paths.650659852" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths">
@@ -113,14 +114,14 @@
 			<resource resourceType="PROJECT" workspacePath="/watch_it"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.debug.1032696847;cdt.managedbuild.config.gnu.exe.debug.1032696847.;cdt.managedbuild.tool.gnu.c.compiler.exe.debug.2090269467;cdt.managedbuild.tool.gnu.c.compiler.input.631746605">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.release.1340681528;cdt.managedbuild.config.gnu.exe.release.1340681528.;cdt.managedbuild.tool.gnu.c.compiler.exe.release.1262176236;cdt.managedbuild.tool.gnu.c.compiler.input.202644605">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.debug.1032696847;cdt.managedbuild.config.gnu.exe.debug.1032696847.;cdt.managedbuild.tool.gnu.c.compiler.exe.debug.2090269467;cdt.managedbuild.tool.gnu.c.compiler.input.631746605">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

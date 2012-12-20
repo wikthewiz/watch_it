@@ -53,8 +53,6 @@ int main (int argc, char *argv[])
 
 }
 
-
-
 void init_name_map()
 {
 	for (int i = 0; i < MAX_WATCH; ++i)
@@ -102,7 +100,7 @@ int begin_watch(const struct conf * const config)
 	}
 
 
-	if (event_handling_init())
+	if (event_handling_init(config->min_read_close))
 	{
 		fprintf (stderr, "Failed to initiate event_handling ");
 		return -1;
@@ -119,6 +117,7 @@ int begin_watch(const struct conf * const config)
 		printf("to be watched: %s\n",config->watch_dir[i]);
 
 		wd = inotify_add_watch (fd, config->watch_dir[i], config->fire_on);
+
 		if (wd < 0)
 		{
 			handle_error (errno);

@@ -3,6 +3,9 @@ test*
 Debug
 config
 
+#eclipse
+.metadata
+
 #vim
 *.swp
 
