@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include <sys/inotify.h>
 #include <errno.h>
+#include <math.h>
 
 
 
@@ -51,6 +52,9 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  wait_cond = PTHREAD_COND_INITIALIZER;
 static int signaled;
 static int max_delay_before_fire;
+
+// Used as fall back if clock_gettime should have a strange value
+static long unsigned int last_tick;
 
 void *consumer();
 
@@ -194,7 +198,6 @@ static inline void reset_to_open(FILE_LIST *file_to_open,
 	file_to_open->file->open_timestamp = timestamp;
 }
 
-static long unsigned int last_tick;
 long unsigned int event_handling_get_tick()
 {
 	struct timespec start;
@@ -212,8 +215,7 @@ long unsigned int event_handling_get_tick()
 	if (last_tick > cur_tick)
 	{
 		fprintf(stderr,"FAILED last_tick is greater then cur tick!!");
-		last_tick = cur_tick;
-		return 0;
+		return last_tick;
 	}
 
 	last_tick = cur_tick;
@@ -387,14 +389,32 @@ void execute_close_event(FILE_EVENT *f)
 
 void wait_for_producer(long unsigned int max_wait_time)
 {
-	struct timespec timeToWait;
-	struct timeval now;
+	struct timespec timeToWait,now;
+//	struct timeval now;
 	int wres = 0;
-	gettimeofday(&now,NULL);
+	clock_gettime(0, &now);
+
 //	printf("wait:%is\n", max_wait_time/10);
-	timeToWait.tv_sec = now.tv_sec + max_wait_time/10;
-	timeToWait.tv_nsec = 0;
-//	printf("WAITING\n");
+
+	double seconds_int_part = 0, seconds_fract_part = 0;
+	seconds_fract_part = modf( ((double)max_wait_time)/1000,
+								&seconds_int_part);
+
+
+	if (now.tv_nsec + (int)(seconds_fract_part * 1000000) >= 1000000)
+	{
+		timeToWait.tv_sec = now.tv_sec + (int)seconds_int_part + 1;
+		timeToWait.tv_nsec = (now.tv_nsec +
+				(int)(seconds_fract_part * 1000000)) -1000000;
+	}
+	else
+	{
+		timeToWait.tv_sec = now.tv_sec + (int)seconds_int_part;
+			timeToWait.tv_nsec = now.tv_nsec +
+					(int)(seconds_fract_part * 1000000);
+	}
+
+
 	if ((wres = pthread_cond_timedwait( &wait_cond, &mutex ,&timeToWait)))
 	{
 		switch(wres)
@@ -425,7 +445,6 @@ void wait_for_producer(long unsigned int max_wait_time)
 		default:break;
 		}
 	}
-//	printf("WOKE_UP\n");
 }
 
 int add_new_file(FILE_EVENT *cur_file)
@@ -468,12 +487,7 @@ int event_handling_add_event(EVENT *event)
 			}
 			else
 			{
-				if (tmp_file->file->has_fired_open)
-				{
-//					fprintf(stderr, "%s has opened but it will now be removed!",
-//							tmp_file->file->name);
-				}
-				else
+				if (!tmp_file->file->has_fired_open)
 				{
 					remove_from_list(tmp_file);
 				}
@@ -529,7 +543,7 @@ void *consumer(void *arg)
 		if (!signaled)
 		{
 			wait_for_producer(cur_wait);
-			cur_wait = 600;
+			cur_wait = max_delay_before_fire;
 		}
 //		printf("(%i) start:",i);print_list();
 		signaled = 0;
@@ -582,6 +596,10 @@ void *consumer(void *arg)
 			}
 		}
 
+		if (list_empty(&file_event_list.list))
+		{
+			cur_wait = 6000;
+		}
 //		printf("(%i) stop:",i);print_list();printf("\n\n");
 		signaled = 0;
 		pthread_mutex_unlock( &mutex );

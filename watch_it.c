@@ -8,6 +8,8 @@
 #include "config.h"
 #include "event_handling.h"
 
+/* Allow for 1024 simultaneous events */
+#define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
 
 typedef struct
 {
@@ -170,9 +172,6 @@ WD_NAME_TUPLE* find_in_map(int wd)
 	}
 	return NULL;
 }
-
-/* Allow for 1024 simultaneous events */
-#define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
 
 void get_event (int fd)
 {
