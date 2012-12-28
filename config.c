@@ -5,6 +5,8 @@
 #include <sys/inotify.h>
 #include "iniparser.h"
 #include <strings.h>
+#include <errno.h>
+#include <unistd.h>
 
 int equals(const char * const val, const char * const other)
 {
@@ -161,10 +163,19 @@ struct conf* allocate_config(dictionary *dict)
 	config_init(config);
 	return config;
 }
+
 struct conf* config_load()
 {
 	dictionary *dict;
 	struct conf *config = NULL;
+	int res = 0;
+	if( (res = access( CONFIG_FILE, R_OK )))
+	{
+		fprintf (stderr,"FAILED to access: %s\n\tcause:%s\n",
+				  CONFIG_FILE,
+				  strerror( errno ));
+		return NULL;
+	}
 
 	dict = iniparser_load(CONFIG_FILE);
 	if (!dict)

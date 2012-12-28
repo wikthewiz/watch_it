@@ -8,6 +8,7 @@
 #include "config.h"
 #include "event_handling.h"
 
+
 /* Allow for 1024 simultaneous events */
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
 
@@ -39,7 +40,7 @@ int main (int argc, char *argv[])
 	struct conf *config = config_load();
 	if (config == NULL)
 	{
-		fprintf(stderr,"failed to load config file");
+		fprintf(stderr,"failed to load config file\n");
 		return -1;
 	}
 
