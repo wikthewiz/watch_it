@@ -27,7 +27,6 @@ struct conf{
 	char **watch_dir;
 	int watch_dir_count;
 	int type;
-	int recursive;
 	int fire_on;
 	int min_read_close;
 };

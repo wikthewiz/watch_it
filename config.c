@@ -7,13 +7,14 @@
 #include <strings.h>
 #include <errno.h>
 #include <unistd.h>
+#include <dirent.h>
 
-int equals(const char * const val, const char * const other)
+static inline int equals(const char * const val, const char * const other)
 {
 	return strcasecmp(val, other) == 0;
 }
 
-int is_true(const char * const val)
+static inline int is_true(const char * const val)
 {
 	return equals(val, "true");
 }
@@ -42,38 +43,22 @@ int load_watch_dir(dictionary *dict, struct conf *config)
 	return 0;
 }
 
-int load_watch_the_dir(dictionary* dict, struct conf* config)
+int load_watch_content(dictionary* dict, struct conf* config)
 {
-	char* def = "";
-	char* val =
-	{ 0 };
-	val = iniparser_getstring(dict, "folder:watch_the_dir", def);
-	if (val == NULL )
-	{
-		return -1;
-	}
-	if (is_true(val))
-	{
-		config->type |= WATCH_DIR;
-	}
+	config->type |= WATCH_CONTENT;
 	return 0;
 }
 
-int load_watch_content(dictionary* dict, struct conf* config)
+int is_recursive(dictionary* dict)
 {
-	char* def = "";
-	char* val =
-	{ 0 };
-	val = iniparser_getstring(dict, "folder:watch_content", def);
-	if (val == NULL )
-	{
-		return -1;
-	}
-	if (is_true(val))
-	{
-		config->type |= WATCH_CONTENT;
-	}
-	return 0;
+    char* def = "";
+    char* val = { 0 };
+    val = iniparser_getstring(dict, "folder:recursive", def);
+    if (val == NULL )
+    {
+    	return -1;
+    }
+    return is_true(val);
 }
 
 int get_watch_dir_count(dictionary* dict)
@@ -93,8 +78,38 @@ int get_watch_dir_count(dictionary* dict)
 		count++;
 		pch = strtok(NULL, ", ");
 	}
+
+	if (is_recursive(dict))
+	{
+		printf("recursive NOT implemented yet!\n");
+	}
+
 	return count;
 }
+
+int count_all_dirs()
+{
+	DIR *dir;
+	struct dirent *ent;
+
+	dir = opendir(".");
+	if (dir == NULL)
+	{
+		return -1;
+	}
+
+	/* print all the files and directories within directory */
+	while ((ent = readdir(dir)) != NULL )
+	{
+		if (equals(".", ent->d_name) || equals("..",ent->d_name))
+		{
+			continue;
+		}
+		printf("%s\n", ent->d_name);
+	}
+	return closedir(dir);
+}
+
 int load_fire_on(dictionary* dict, struct conf* config)
 {
 	char* def = "";
@@ -109,7 +124,6 @@ int load_fire_on(dictionary* dict, struct conf* config)
 	char* pch = strtok(copy_of_val, " |");
 	while (pch != NULL )
 	{
-		///////////////////////////////////////
 		if (equals(pch, "OPEN"))
 		{
 			config->fire_on |= IN_OPEN;
@@ -133,7 +147,9 @@ int load_fire_on(dictionary* dict, struct conf* config)
 
 int load_min_read_close(dictionary *dict, struct conf *config)
 {
-	config->min_read_close = iniparser_getint(dict, "folder:min_read_close", 0);
+	config->min_read_close = iniparser_getint(dict,
+											  "folder:min_read_close",
+											  0);
 	return 0;
 }
 
@@ -157,6 +173,9 @@ struct conf* allocate_config(dictionary *dict)
 
 struct conf* config_load()
 {
+
+	count_all_dirs();
+	return NULL;
 	dictionary *dict;
 	struct conf *config = NULL;
 	int res = 0;
@@ -180,12 +199,12 @@ struct conf* config_load()
 		goto clean_up;
 	}
 
-	if (load_watch_dir(dict, config))
+	if (load_fire_on(dict, config))
 	{
 		goto clean_up;
 	}
 
-	if (load_watch_the_dir(dict, config))
+	if (load_watch_dir(dict, config))
 	{
 		goto clean_up;
 	}
@@ -202,7 +221,8 @@ struct conf* config_load()
 
 	load_min_read_close(dict, config);
 
-	clean_up: iniparser_freedict(dict);
+clean_up:
+	iniparser_freedict(dict);
 	return config;
 }
 
@@ -222,7 +242,6 @@ void config_free(struct conf *config)
 }
 void config_init(struct conf *config)
 {
-	config->recursive = 0;
 	if (config->watch_dir != NULL )
 	{
 		strcpy(config->watch_dir[0], "\0");

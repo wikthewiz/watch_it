@@ -51,7 +51,7 @@ int main (int argc, char *argv[])
 	}
 	int res = begin_watch(config);
 	config_free(config);
-	printf("exit");
+	printf("exit\n");
 	return res;
 
 }
