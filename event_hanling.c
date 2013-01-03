@@ -77,7 +77,7 @@ static inline long unsigned int calc_open_delta(FILE_LIST* orig)
 	long unsigned int cur_tick = event_handling_get_tick();
 	if (orig == NULL || orig->file == NULL)
 	{
-		fprintf(stderr,"NULL error in calc_open_delta");
+		fprintf(stderr,"NULL error in calc_open_delta\n");
 		return 0;
 	}
 
@@ -97,7 +97,7 @@ static inline long unsigned int calc_close_delta(FILE_LIST* orig)
 
 	if (orig == NULL || orig->file == NULL)
 	{
-		fprintf(stderr,"NULL error in calc_close_delta");
+		fprintf(stderr,"NULL error in calc_close_delta\n");
 		return 0;
 	}
 
@@ -152,7 +152,7 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			e->timestamp < f->open_timestamp )
 		{
-			fprintf(stderr,"trying to set a cose_timestamp that is before open!");
+			fprintf(stderr,"trying to set a cose_timestamp that is before open!\n");
 		}
 
 		f->close_timestamp = e->timestamp;
@@ -162,13 +162,13 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			f->close_timestamp < e->timestamp )
 		{
-			fprintf(stderr,"trying to set a open_timestamp that is after close!");
+			fprintf(stderr,"trying to set a open_timestamp that is after close!\n");
 		}
 		f->open_timestamp = e->timestamp;
 	}
 	else
 	{
-		fprintf(stderr,"FAILED to copy event to a file");
+		fprintf(stderr,"FAILED to copy event to a file\n");
 		return -1;
 	}
 	return 0;
@@ -179,7 +179,7 @@ static inline void close_file(FILE_LIST *file_to_close,
 {
 	if (file_to_close->file->open_timestamp > timestamp)
 	{
-		fprintf(stderr, "trying to set a cose_timestamp that is before open!");
+		fprintf(stderr, "trying to set a cose_timestamp that is before open!\n");
 	}
 
 	file_to_close->file->is_closed = 1;
@@ -191,7 +191,7 @@ static inline void reset_to_open(FILE_LIST *file_to_open,
 {
 	if (file_to_open->file->close_timestamp == UINT32_MAX)
 	{
-		fprintf(stderr, "trying to reset file that has not been closed!?!?");
+		fprintf(stderr, "trying to reset file that has not been closed!?!?\n");
 	}
 	file_to_open->file->is_closed = 0;
 	file_to_open->file->close_timestamp = UINT32_MAX;
@@ -205,7 +205,7 @@ long unsigned int event_handling_get_tick()
 	if ((errCode = clock_gettime(0, &start)))
 	{
 		fprintf(stderr,"FAILED to get current tick in: \
-					     event_handling_get_tick. Error code: %i", errCode);
+					     event_handling_get_tick. Error code: %i\n", errCode);
 		return 0;
 	}
 
@@ -214,7 +214,7 @@ long unsigned int event_handling_get_tick()
 
 	if (last_tick > cur_tick)
 	{
-		fprintf(stderr,"FAILED last_tick is greater then cur tick!!");
+		fprintf(stderr,"FAILED last_tick is greater then cur tick!!\n");
 		return last_tick;
 	}
 
@@ -353,14 +353,14 @@ void execute_open_event(FILE_EVENT *f)
 	if (f->has_fired_open)
 	{
 		fprintf(stderr,
-				"execute open, even thought it already has been executed");
+				"execute open, even thought it already has been executed\n");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
 		fprintf(stderr,
-				"execute open, even thought close has already been executed");
+				"execute open, even thought close has already been executed\n");
 		return;
 	}
 
@@ -373,14 +373,14 @@ void execute_close_event(FILE_EVENT *f)
 	if (!f->has_fired_open)
 	{
 		fprintf(stderr,
-				"execute close, even thought open hasn't been fired!");
+				"execute close, even thought open hasn't been fired!\n");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
 		fprintf(stderr,
-				"execute close, even thought close has already been executed");
+				"execute close, even thought close has already been executed\n");
 		return;
 	}
 	printf("*CLOSE file:%s \n", f->name);
@@ -483,7 +483,7 @@ int event_handling_add_event(EVENT *event)
 		{
 			if (has_open_past_delay(tmp_file))
 			{
-				close_file(tmp_file, event->timestamp);
+				close_file(tmp_file, event_handling_get_tick());
 			}
 			else
 			{
@@ -510,7 +510,7 @@ int event_handling_add_event(EVENT *event)
 			{
 				if (add_new_file(&file_to_add))
 				{
-					fprintf(stderr, "FAILED to open file. I will skip this!");
+					fprintf(stderr, "FAILED to open file. I will skip this!\n");
 					res = -1;
 				}
 			}
@@ -567,18 +567,18 @@ void *consumer(void *arg)
 
 			if (!cur->file->has_fired_closed)
 			{
-				if (has_close_past_delay(cur))
+				if (is_valid_close(cur) && cur->file->has_fired_open)
 				{
 					execute_close_event(cur->file);
 					cur->remove = 1;
 				}
-				else if (is_valid_close(cur))
-				{
-					if (cur_wait > calc_close_delta(cur))
-					{
-						cur_wait = calc_close_delta(cur);
-					}
-				}
+//				else if (is_valid_close(cur))
+//				{
+//					if (cur_wait > calc_close_delta(cur))
+//					{
+//						cur_wait = calc_close_delta(cur);
+//					}
+//				}
 			}
 		}
 
