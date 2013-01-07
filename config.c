@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 static inline int equals(const char * const val, const char * const other)
 {
@@ -17,36 +19,6 @@ static inline int equals(const char * const val, const char * const other)
 static inline int is_true(const char * const val)
 {
 	return equals(val, "true");
-}
-
-int load_watch_dir(dictionary *dict, struct conf *config)
-{
-	char copy_of_val[FILENAME_MAX];
-	char *def = "";
-	char *watch_dir = "folder:watch_dir";
-	strcpy(copy_of_val, iniparser_getstring(dict, watch_dir, def));
-	printf("watch_dir val:%s\n", copy_of_val);
-	char* pch = strtok(copy_of_val, ", ");
-	while (pch != NULL )
-	{
-		config->watch_dir[config->watch_dir_count] = (char*) malloc(
-				sizeof(char) * strlen(pch));
-		if (config->watch_dir[config->watch_dir_count] == NULL )
-		{
-			return -1;
-		}
-		strcpy((config->watch_dir[config->watch_dir_count]), pch);
-		config->watch_dir_count++;
-		pch = strtok(NULL, ", ");
-	}
-
-	return 0;
-}
-
-int load_watch_content(dictionary* dict, struct conf* config)
-{
-	config->type |= WATCH_CONTENT;
-	return 0;
 }
 
 int is_recursive(dictionary* dict)
@@ -61,38 +33,29 @@ int is_recursive(dictionary* dict)
     return is_true(val);
 }
 
-int get_watch_dir_count(dictionary* dict)
+int is_dir(char *dirName)
 {
-	char *val =
-	{ 0 };
-	char *def = "";
-	int count = 0;
-	char copy_of_val[FILENAME_MAX];
-	char *watch_dir = "folder:watch_dir";
-
-	val = iniparser_getstring(dict, watch_dir, def);
-	strcpy(copy_of_val, val);
-	char *pch = strtok(copy_of_val, ", ");
-	while (pch != NULL )
+	struct stat buf;
+	if (lstat(dirName,&buf))
 	{
-		count++;
-		pch = strtok(NULL, ", ");
+		fprintf (stderr,"FAILED: lstat(%s): \n\tcause:%s\n",
+				  dirName,
+				  strerror( errno ));
+		return -1;
 	}
 
-	if (is_recursive(dict))
-	{
-		printf("recursive NOT implemented yet!\n");
-	}
-
-	return count;
+	return S_ISDIR(buf.st_mode);
 }
 
-int count_all_dirs()
+
+int count_all_dirs(char *dir_name)
 {
 	DIR *dir;
 	struct dirent *ent;
+	int cur_count;
+	cur_count = 0;
 
-	dir = opendir(".");
+	dir = opendir(dir_name);
 	if (dir == NULL)
 	{
 		return -1;
@@ -101,13 +64,151 @@ int count_all_dirs()
 	/* print all the files and directories within directory */
 	while ((ent = readdir(dir)) != NULL )
 	{
-		if (equals(".", ent->d_name) || equals("..",ent->d_name))
+		int errRes = 0;
+		char nextFile[FILENAME_MAX];
+		memset(nextFile,'\0',FILENAME_MAX);
+		strcat(nextFile,dir_name);
+		strcat(nextFile,"/");
+		strcat(nextFile,ent->d_name);
+
+		if (equals(".", ent->d_name) || equals("..",ent->d_name)) continue;
+		if ( !(errRes = is_dir(nextFile)) && errRes != -1) continue;
+		if (errRes == -1) return -1;
+
+		++cur_count;
+		int count = count_all_dirs(nextFile);
+		if (count < 0)
 		{
-			continue;
+			closedir(dir);
+			return -1;
 		}
-		printf("%s\n", ent->d_name);
+		cur_count += count;
 	}
+
+	if (closedir(dir))
+	{
+		return -1;
+	}
+	return cur_count;
+}
+
+int write_to_watchdir(struct conf *config, char *pch)
+{
+	config->watch_dir[config->watch_dir_count] =
+			(char*) malloc(sizeof(char) * strlen(pch) + 1);
+	if (config->watch_dir[config->watch_dir_count] == NULL )
+	{
+		fprintf(stderr,"FAILD: Faild to malloc:\n");
+		return -1;
+	}
+	strcpy((config->watch_dir[config->watch_dir_count]), pch);
+	config->watch_dir_count++;
+	return 0;
+}
+
+int load_watch_dir_rec(char *curDir, struct conf *config)
+{
+	DIR *dir;
+	struct dirent *ent;
+	char nextFile[FILENAME_MAX];
+
+	dir = opendir(curDir);
+	if (dir == NULL)
+	{
+		return -1;
+	}
+
+	/* print all the files and directories within directory */
+	while ((ent = readdir(dir)) != NULL )
+	{
+		int errRes = 0;
+		if (equals(".", ent->d_name) || equals("..",ent->d_name)) continue;
+
+		memset(nextFile,'\0',FILENAME_MAX);
+		strcat(nextFile,curDir);
+		strcat(nextFile,"/");
+		strcat(nextFile,ent->d_name);
+
+		if ( !(errRes = is_dir(nextFile)) && errRes != -1) continue;
+		if (errRes == -1) return -1;
+
+		if (write_to_watchdir(config,nextFile))
+		{
+			closedir(dir);
+			return -1;
+		}
+
+		if( load_watch_dir_rec(nextFile, config))
+		{
+			closedir(dir);
+			return -1;
+		}
+	}
+
 	return closedir(dir);
+}
+
+int load_watch_dir(dictionary *dict, struct conf *config)
+{
+	char copy_of_val[FILENAME_MAX];
+	memset(copy_of_val,'\0',FILENAME_MAX);
+	char *def = "";
+	char *watch_dir = "folder:watch_dir";
+	strcpy(copy_of_val, iniparser_getstring(dict, watch_dir, def));
+	printf("watch_dir val:%s\n", copy_of_val);
+	char* pch = strtok(copy_of_val, ", ");
+	while (pch != NULL )
+	{
+		if (write_to_watchdir(config,pch))
+		{
+			return -1;
+		}
+
+		if ( is_recursive(dict) )
+		{
+			int nbrOfRecFolders = count_all_dirs(pch);
+			int n = count_all_dirs(pch);
+			load_watch_dir_rec(pch, config);
+		}
+
+		pch = strtok(NULL, ", ");
+	}
+
+	return 0;
+}
+
+int load_watch_content(dictionary* dict, struct conf* config)
+{
+	config->type |= WATCH_CONTENT;
+	return 0;
+}
+
+
+int get_watch_dir_count(dictionary* dict)
+{
+	char *val = {0};
+	char *def = "";
+	int count = 0;
+	char copy_of_val[FILENAME_MAX];
+	char *watch_dir = "folder:watch_dir";
+	val = iniparser_getstring(dict, watch_dir, def);
+	strcpy(copy_of_val, val);
+
+
+	char *pch = strtok(copy_of_val, ", ");
+	while (pch != NULL )
+	{
+		count++;
+		if (is_recursive(dict))
+		{
+			int nbrOfRecFolders = count_all_dirs(pch);
+			if (nbrOfRecFolders < 0) return -1;
+			count += nbrOfRecFolders;
+		}
+		pch = strtok(NULL, ", ");
+	}
+
+	return count;
 }
 
 int load_fire_on(dictionary* dict, struct conf* config)
@@ -166,6 +267,7 @@ struct conf* allocate_config(dictionary *dict)
 			free(config);
 			return NULL ;
 		}
+		memset(config->watch_dir,'\0',watch_dir_count);
 	}
 	config_init(config);
 	return config;
@@ -173,9 +275,6 @@ struct conf* allocate_config(dictionary *dict)
 
 struct conf* config_load()
 {
-
-	count_all_dirs();
-	return NULL;
 	dictionary *dict;
 	struct conf *config = NULL;
 	int res = 0;
@@ -242,13 +341,8 @@ void config_free(struct conf *config)
 }
 void config_init(struct conf *config)
 {
-	if (config->watch_dir != NULL )
-	{
-		strcpy(config->watch_dir[0], "\0");
-	}
 	config->type = 0;
 	config->fire_on = 0;
 	config->min_read_close = 0;
 	config->watch_dir_count = 0;
 }
-

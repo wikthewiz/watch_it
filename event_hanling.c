@@ -91,26 +91,6 @@ static inline long unsigned int calc_open_delta(FILE_LIST* orig)
 	return val;
 }
 
-static inline long unsigned int calc_close_delta(FILE_LIST* orig)
-{
-	long unsigned int cur_tick = event_handling_get_tick();
-
-	if (orig == NULL || orig->file == NULL)
-	{
-		fprintf(stderr,"NULL error in calc_close_delta\n");
-		return 0;
-	}
-
-	if (cur_tick < orig->file->close_timestamp )
-	{
-		fprintf(stderr,"cur_tick is before timestamp: calc_close_delta\n");
-		return 0;
-	}
-
-	long unsigned int val = cur_tick - orig->file->close_timestamp ;
-	return val;
-}
-
 static inline int has_open_past_delay(FILE_LIST *orig)
 {
 	return calc_open_delta(orig) > max_delay_before_fire;
@@ -119,12 +99,6 @@ static inline int has_open_past_delay(FILE_LIST *orig)
 static inline int is_valid_close(FILE_LIST *orig)
 {
 	return orig->file->close_timestamp != 	 UINT32_MAX;
-}
-
-static inline int has_close_past_delay(FILE_LIST *orig)
-{
-	if (!is_valid_close(orig)) return 0;
-	return calc_close_delta(orig) > max_delay_before_fire;
 }
 
 static inline int is_open_event(EVENT *other)
@@ -572,13 +546,6 @@ void *consumer(void *arg)
 					execute_close_event(cur->file);
 					cur->remove = 1;
 				}
-//				else if (is_valid_close(cur))
-//				{
-//					if (cur_wait > calc_close_delta(cur))
-//					{
-//						cur_wait = calc_close_delta(cur);
-//					}
-//				}
 			}
 		}
 
@@ -587,8 +554,6 @@ void *consumer(void *arg)
 		list_for_each_safe(pos, q, &file_event_list.list){
 			cur = list_entry(pos, FILE_LIST, list);
 			if (cur->remove){
-//				printf("freeing item name:%s\tid:%i\n",cur->element->name,
-//						cur->element->id);
 				list_del(pos);
 				deallocate_file(cur->file);
 				cur->file = NULL;
@@ -600,7 +565,6 @@ void *consumer(void *arg)
 		{
 			cur_wait = 6000;
 		}
-//		printf("(%i) stop:",i);print_list();printf("\n\n");
 		signaled = 0;
 		pthread_mutex_unlock( &mutex );
 		i++;
