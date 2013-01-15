@@ -166,8 +166,6 @@ int load_watch_dir(dictionary *dict, struct conf *config)
 
 		if ( is_recursive(dict) )
 		{
-			int nbrOfRecFolders = count_all_dirs(pch);
-			int n = count_all_dirs(pch);
 			load_watch_dir_rec(pch, config);
 		}
 
