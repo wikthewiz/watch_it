@@ -3,7 +3,7 @@
  */
 #include "config.h"
 #include <sys/inotify.h>
-#include "iniparser.h"
+#include "iniparser/iniparser.h"
 #include <strings.h>
 #include <errno.h>
 #include <unistd.h>
