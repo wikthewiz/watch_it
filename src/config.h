@@ -29,6 +29,8 @@ struct conf{
 	int type;
 	int fire_on;
 	int min_read_close;
+	char *open_cmd;
+	char *close_cmd;
 };
 struct conf* config_load();
 void config_init(struct conf *config);

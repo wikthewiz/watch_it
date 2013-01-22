@@ -49,6 +49,10 @@ int main (int argc, char *argv[])
 	{
 		printf("conf->watch_dir[%i]:%s\n",i,config->watch_dir[i]);
 	}
+
+	printf("open_cmd: %s\n",config->open_cmd);
+	printf("close_cmd: %s\n",config->close_cmd);
+
 	int res = begin_watch(config);
 	config_free(config);
 	printf("exit\n");

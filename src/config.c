@@ -175,7 +175,7 @@ int load_watch_dir(dictionary *dict, struct conf *config)
 	return 0;
 }
 
-int load_watch_content(dictionary* dict, struct conf* config)
+static inline int load_watch_content(dictionary* dict, struct conf* config)
 {
 	config->type |= WATCH_CONTENT;
 	return 0;
@@ -271,6 +271,42 @@ struct conf* allocate_config(dictionary *dict)
 	return config;
 }
 
+static inline int alloc_cmd(const char const* cmd, dictionary *dict, char **to_be_malloc)
+{
+	char *def = "";
+	int len = strlen(iniparser_getstring(dict, cmd, def));
+	*to_be_malloc = (char*)malloc(sizeof(char*) * len + 1);
+	if (*to_be_malloc == NULL)
+	{
+		return -1;
+	}
+	memset(*to_be_malloc,'\0',len);
+	return 0;
+}
+
+static inline int load_cmd(const char const* cmd, dictionary *dict, char *to_be_loaded)
+{
+	char *def = "";
+	return strcpy(to_be_loaded, iniparser_getstring(dict, cmd, def)) == NULL;
+}
+
+int load_commands(dictionary *dict, struct conf *config)
+{
+	if (alloc_cmd("folder:close_command", dict, &config->close_cmd))
+	{
+		return -1;
+	}
+	if (load_cmd("folder:close_command", dict, config->close_cmd))
+	{
+		return -1;
+	}
+
+	if (alloc_cmd("folder:open_command", dict, &config->open_cmd))
+	{
+		return -1;
+	}
+	return load_cmd("folder:open_command", dict, config->open_cmd);
+}
 struct conf* config_load()
 {
 	dictionary *dict;
@@ -316,6 +352,10 @@ struct conf* config_load()
 		goto clean_up;
 	}
 
+	if (load_commands(dict,config))
+	{
+		goto clean_up;
+	}
 	load_min_read_close(dict, config);
 
 clean_up:
@@ -335,6 +375,15 @@ void config_free(struct conf *config)
 		}
 		free(config->watch_dir);
 	}
+
+	if (config->close_cmd)
+	{
+		free(config->close_cmd);
+	}
+	if (config->open_cmd)
+	{
+		free(config->open_cmd);
+	}
 	free(config);
 }
 void config_init(struct conf *config)
@@ -343,4 +392,6 @@ void config_init(struct conf *config)
 	config->fire_on = 0;
 	config->min_read_close = 0;
 	config->watch_dir_count = 0;
+	config->close_cmd = NULL;
+	config->open_cmd = NULL;
 }
