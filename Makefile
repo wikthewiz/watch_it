@@ -4,7 +4,7 @@
 
 # compiler settings
 CC = gcc
-CFLAGS = -Wall -pedantic -std=c99
+CFLAGS = -Wall -pedantic -std=gnu99
 
 # CMD
 REMOVE = rm -v
@@ -17,8 +17,7 @@ NAME = watch_it
 SRC_DIR = src
 INIPARSER_DIR = $(SRC_DIR)/iniparser
 
-SRCS = $(INIPARSER_DIR)/iniparser.c $(INIPARSER_DIR)/dictionary.c \
-	   $(SRC_DIR)/config.c $(SRC_DIR)/watch_it.c $(SRC_DIR)/event_handling.c
+SRCS := $(wildcard $(INIPARSER_DIR)/*.c) $(wildcard $(SRC_DIR)/*.c) 
 DEPS = $(SRCS:.c=.h)
 OBJ_DIR = obj
 OBJS = $(SRCS:.c=.o)

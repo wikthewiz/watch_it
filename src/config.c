@@ -38,9 +38,13 @@ int is_dir(char *dirName)
 	struct stat buf;
 	if (lstat(dirName,&buf))
 	{
-		fprintf (stderr,"FAILED: lstat(%s): \n\tcause:%s\n",
-				  dirName,
-				  strerror( errno ));
+		char c[1024];
+		memset(c,'\0',sizeof(char) * 1024);
+		sprintf(c,
+				"FAILED: lstat(%s): \n\tcause:%s\n",
+			    dirName,
+				strerror(errno));
+		log_e(c);
 		return -1;
 	}
 

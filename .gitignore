@@ -5,6 +5,8 @@ config
 
 #eclipse
 .metadata
+.settings
+.cproject
 
 #vim
 *.swp

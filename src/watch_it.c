@@ -1,13 +1,17 @@
+/**
+ * WATCH_IT.c
+ */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/inotify.h>
 #include "config.h"
 #include "event_handling.h"
 #include "log.h"
+#include <unistd.h>
+#include <sys/inotify.h>
 
 
 /* Allow for 1024 simultaneous events */
