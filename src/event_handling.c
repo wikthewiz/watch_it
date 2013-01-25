@@ -8,11 +8,10 @@
 #include "event_handling.h"
 #include "list.h"
 #include <time.h>
-#include <sys/time.h>
 #include <sys/inotify.h>
 #include <errno.h>
 #include <math.h>
-
+#include "log.h"
 
 
 #define EOWNERDEAD_MSG "The mutex is a robust mutex and the process\
@@ -52,6 +51,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  wait_cond = PTHREAD_COND_INITIALIZER;
 static int signaled;
 static int max_delay_before_fire;
+static char *open_cmd;
+static char *close_cmd;
 
 // Used as fall back if clock_gettime should have a strange value
 static long unsigned int last_tick;
@@ -77,13 +78,13 @@ static inline long unsigned int calc_open_delta(FILE_LIST* orig)
 	long unsigned int cur_tick = event_handling_get_tick();
 	if (orig == NULL || orig->file == NULL)
 	{
-		fprintf(stderr,"NULL error in calc_open_delta\n");
+		log_w("NULL error in calc_open_delta");
 		return 0;
 	}
 
 	if (cur_tick < orig->file->open_timestamp )
 	{
-		fprintf(stderr,"cur_tick is before timestamp: calc_open_delta\n");
+		log_w("cur_tick is before timestamp: calc_open_delta");
 		return 0;
 	}
 
@@ -126,7 +127,7 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			e->timestamp < f->open_timestamp )
 		{
-			fprintf(stderr,"trying to set a cose_timestamp that is before open!\n");
+			log_w("trying to set a close_timestamp that is before open!");
 		}
 
 		f->close_timestamp = e->timestamp;
@@ -136,13 +137,13 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			f->close_timestamp < e->timestamp )
 		{
-			fprintf(stderr,"trying to set a open_timestamp that is after close!\n");
+			log_w("trying to set a open_timestamp that is after close!");
 		}
 		f->open_timestamp = e->timestamp;
 	}
 	else
 	{
-		fprintf(stderr,"FAILED to copy event to a file\n");
+		log_e("FAILED to copy event to a file");
 		return -1;
 	}
 	return 0;
@@ -153,7 +154,7 @@ static inline void close_file(FILE_LIST *file_to_close,
 {
 	if (file_to_close->file->open_timestamp > timestamp)
 	{
-		fprintf(stderr, "trying to set a cose_timestamp that is before open!\n");
+		log_w("[close_file] trying to set a close_timestamp that is before open!");
 	}
 
 	file_to_close->file->is_closed = 1;
@@ -165,7 +166,7 @@ static inline void reset_to_open(FILE_LIST *file_to_open,
 {
 	if (file_to_open->file->close_timestamp == UINT32_MAX)
 	{
-		fprintf(stderr, "trying to reset file that has not been closed!?!?\n");
+		log_w("trying to reset file that has not been closed!?!?");
 	}
 	file_to_open->file->is_closed = 0;
 	file_to_open->file->close_timestamp = UINT32_MAX;
@@ -178,8 +179,11 @@ long unsigned int event_handling_get_tick()
 	int errCode = 0;
 	if ((errCode = clock_gettime(0, &start)))
 	{
-		fprintf(stderr,"FAILED to get current tick in: \
-					     event_handling_get_tick. Error code: %i\n", errCode);
+		char c[1024];
+		memset(c,'\0',sizeof(char) * 1024);
+		sprintf(c,"FAILED to get current tick in: \
+					     event_handling_get_tick. Error code: %i", errCode);
+		log_w(c);
 		return 0;
 	}
 
@@ -188,12 +192,56 @@ long unsigned int event_handling_get_tick()
 
 	if (last_tick > cur_tick)
 	{
-		fprintf(stderr,"FAILED last_tick is greater then cur tick!!\n");
+		log_w("FAILED last_tick is greater then cur tick!!");
 		return last_tick;
 	}
 
 	last_tick = cur_tick;
 	return last_tick;
+}
+
+char *str_replace(char *orig, char *rep, char *with) {
+    char *result; // the return string
+    char *ins;    // the next insert point
+    char *tmp;    // varies
+    int len_rep;  // length of rep
+    int len_with; // length of with
+    int len_front; // distance between rep and end of last rep
+    int count;    // number of replacements
+
+    if (!orig)
+        return NULL;
+    if (!rep || !(len_rep = strlen(rep)))
+        return NULL;
+    if (!(ins = strstr(orig, rep)))
+        return NULL;
+    if (!with)
+        with = "";
+    len_with = strlen(with);
+
+    for (count = 0; (tmp = strstr(ins, rep)); ++count) {
+        ins = tmp + len_rep;
+    }
+
+    // first time through the loop, all the variable are set correctly
+    // from here on,
+    //    tmp points to the end of the result string
+    //    ins points to the next occurrence of rep in orig
+    //    orig points to the remainder of orig after "end of rep"
+    tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
+
+    if (!result)
+        return NULL;
+
+    while (count--) {
+        ins = strstr(orig, rep);
+        len_front = ins - orig;
+        tmp = strncpy(tmp, orig, len_front) + len_front;
+        tmp = strcpy(tmp, with) + len_with;
+        orig += len_front + len_rep; // move to next "end of rep"
+    }
+    strcpy(tmp, orig);
+    return result;
 }
 
 int init_file(FILE_EVENT *f,
@@ -281,24 +329,6 @@ void remove_from_list(FILE_LIST *fl)
 	deallocate_file_list(fl);
 }
 
-void print_file(FILE_EVENT *file)
-{
-	printf("{%s,%d},",file->name,file->id);
-}
-
-void print_list()
-{
-	FILE_LIST *tmp;
-	struct list_head *pos;
-	printf("file_event_list=[");
-	list_for_each(pos, &file_event_list.list){
-		tmp= list_entry(pos, FILE_LIST, list);
-		print_file(tmp->file);
-	}
-	printf("]\n");
-}
-
-
 FILE_LIST* find_in_file_list(EVENT *event_find)
 {
 	FILE_LIST *tmp;
@@ -324,51 +354,96 @@ FILE_LIST* find_in_file_list(EVENT *event_find)
 
 void execute_open_event(FILE_EVENT *f)
 {
+	if (open_cmd == NULL) return;
+	if (strlen(open_cmd) == 0) return;
+
 	if (f->has_fired_open)
 	{
-		fprintf(stderr,
-				"execute open, even thought it already has been executed\n");
+		log_e("execute open, even thought it already has been executed");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
-		fprintf(stderr,
-				"execute open, even thought close has already been executed\n");
+		log_e("execute open, even thought close has already been executed");
 		return;
 	}
 
-	printf("*OPEN file:%s \n", f->name);
+	if (strstr(open_cmd, "@0"))
+	{
+		char *cmd_to_execure = str_replace(open_cmd, "@0", f->name);
+
+		if (system(cmd_to_execure))
+		{
+			char c[1024];
+			memset(c,'\0',sizeof(char) * 1024);
+			sprintf(c,"*EXECUTE open:%s FAILED", cmd_to_execure);
+			log_e(c);
+		}
+		free(cmd_to_execure);
+	}
+	else
+	{
+		if (system(open_cmd))
+		{
+			char c[1024];
+			memset(c, '\0', sizeof(char) * 1024);
+			sprintf(c, "*EXECUTE open:%s FAILED", open_cmd);
+			log_e(c);
+		}
+	}
+
 	f->has_fired_open = 1;
 }
 
 void execute_close_event(FILE_EVENT *f)
 {
+	if (close_cmd == NULL) return;
+		if (strlen(close_cmd) == 0) return;
 	if (!f->has_fired_open)
 	{
-		fprintf(stderr,
-				"execute close, even thought open hasn't been fired!\n");
+		log_e("execute close, even thought open hasn't been fired!");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
-		fprintf(stderr,
-				"execute close, even thought close has already been executed\n");
+		log_e("execute close, even thought close has already been executed");
 		return;
 	}
-	printf("*CLOSE file:%s \n", f->name);
+
+	if (strstr(close_cmd, "@0"))
+	{
+		char *cmd_to_execure = str_replace(close_cmd, "@0", f->name);
+		if (system(cmd_to_execure))
+		{
+			char c[1024];
+			memset(c, '\0', sizeof(char) * 1024);
+			sprintf(c, "*EXECUTE close:%s FAILED\n", cmd_to_execure);
+			log_e(c);
+		}
+
+		free(cmd_to_execure);
+	}
+	else
+	{
+		if (system(close_cmd))
+		{
+			char c[1024];
+			memset(c, '\0', sizeof(char) * 1024);
+			sprintf(c, "*EXECUTE close:%s FAILED", close_cmd);
+			log_e(c);
+		}
+	}
+
 	f->has_fired_closed = 1;
 }
 
 void wait_for_producer(long unsigned int max_wait_time)
 {
 	struct timespec timeToWait,now;
-//	struct timeval now;
 	int wres = 0;
 	clock_gettime(0, &now);
-
-//	printf("wait:%is\n", max_wait_time/10);
 
 	double seconds_int_part = 0, seconds_fract_part = 0;
 	seconds_fract_part = modf( ((double)max_wait_time)/1000,
@@ -391,30 +466,37 @@ void wait_for_producer(long unsigned int max_wait_time)
 
 	if ((wres = pthread_cond_timedwait( &wait_cond, &mutex ,&timeToWait)))
 	{
+		char c[1024];
+		memset(c, '\0', sizeof(char) * 1024);
 		switch(wres)
 		{
 		case ENOTRECOVERABLE:
-			fprintf(stderr,
+			sprintf(c,
 					"pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
 					wres,
 					"The state protected by the mutex is not recoverable.");
+			log_e(c);
 			break;
-		case EOWNERDEAD:fprintf(stderr,
-				"pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
-				wres,
-				EOWNERDEAD_MSG);
+		case EOWNERDEAD:
+			sprintf(c,
+					"pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
+					wres,
+					EOWNERDEAD_MSG);
+			log_e(c);
 		break;
 		case EPERM:
-			fprintf(stderr,
+			sprintf(c,
 					 "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
 					 wres,
 					 EPERM_MSG);
+			log_e(c);
 			break;
 		case EINVAL:
-			fprintf(stderr,
+			sprintf(c,
 				     "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
 				     wres,
 				     EINVAL_MSG);
+			log_e(c);
 			break;
 		default:break;
 		}
@@ -484,7 +566,7 @@ int event_handling_add_event(EVENT *event)
 			{
 				if (add_new_file(&file_to_add))
 				{
-					fprintf(stderr, "FAILED to open file. I will skip this!\n");
+					log_e("FAILED to open file. I will skip this!");
 					res = -1;
 				}
 			}
@@ -519,7 +601,6 @@ void *consumer(void *arg)
 			wait_for_producer(cur_wait);
 			cur_wait = max_delay_before_fire;
 		}
-//		printf("(%i) start:",i);print_list();
 		signaled = 0;
 		list_for_each(pos, &file_event_list.list)
 		{
@@ -571,19 +652,23 @@ void *consumer(void *arg)
 	}
 	return NULL;
 }
-int event_handling_init(int min_read_close)
+int event_handling_init(const struct conf const *config)
 {
 	INIT_LIST_HEAD(&file_event_list.list);
-	max_delay_before_fire = min_read_close;
+	max_delay_before_fire = config->min_read_close;
+
+	open_cmd = (char*)malloc( sizeof(char) * strlen(config->open_cmd));
+	strcpy(open_cmd,config->open_cmd);
+
+	close_cmd = (char*)malloc( sizeof(char) * strlen(config->close_cmd));
+	strcpy(close_cmd,config->close_cmd);
+
 	signaled = 0;
 	last_tick = 0;
 	if ( pthread_create( &consumer_thread, NULL, &consumer, NULL) )
 	{
-		fprintf(stderr,"failed to create consumer thread\n");
+		log_e("failed to create consumer thread");
 		return -1;
 	}
 	return 0;
 }
-
-
-

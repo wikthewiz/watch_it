@@ -8,7 +8,7 @@
 #ifndef EVENT_HANDLING_H_
 #define EVENT_HANDLING_H_
 
-#include <stdio.h>
+#include "config.h"
 
 typedef struct
 {
@@ -21,9 +21,9 @@ typedef struct
 } EVENT;
 
 int event_handling_add_event(EVENT *event);
-int event_handling_notify();
-int event_handling_init();
-long unsigned int event_handling_get_tick();
+int event_handling_notify(void);
+int event_handling_init(const struct conf const * config);
+long unsigned int event_handling_get_tick(void);
 
 
 #endif /* EVENT_HANDLING_H_ */

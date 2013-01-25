@@ -7,6 +7,7 @@
 #include <sys/inotify.h>
 #include "config.h"
 #include "event_handling.h"
+#include "log.h"
 
 
 /* Allow for 1024 simultaneous events */
@@ -24,7 +25,6 @@ static WD_NAME_TUPLE name_map[MAX_WATCH];
 static int name_map_len = 0;
 
 void get_event (int fd);
-void handle_error (int error);
 int begin_watch(const struct conf * const config);
 int add_to_map(const char * const to_be_watched,
 				 int wd,
@@ -40,22 +40,14 @@ int main (int argc, char *argv[])
 	struct conf *config = config_load();
 	if (config == NULL)
 	{
-		fprintf(stderr,"failed to load config file\n");
+		log_e("failed to load config file");
 		return -1;
 	}
 
 	init_name_map();
-	for (int i = 0; i < config->watch_dir_count; ++i)
-	{
-		printf("conf->watch_dir[%i]:%s\n",i,config->watch_dir[i]);
-	}
-
-	printf("open_cmd: %s\n",config->open_cmd);
-	printf("close_cmd: %s\n",config->close_cmd);
-
 	int res = begin_watch(config);
 	config_free(config);
-	printf("exit\n");
+	log_w("exit");
 	return res;
 
 }
@@ -83,51 +75,54 @@ int begin_watch(const struct conf * const config)
 
 	fd = inotify_init();
 	if (fd < 0) {
-		handle_error (errno);
+		log_e("inotify_init failed");
 		return -1;
 	}
 
 	if (config->fire_on == 0)
 	{
-		fprintf(stderr,"nothing to fire on!?\n");
+		log_e("nothing to fire on!?\n");
 		return -1;
 	}
 
 	if (config->watch_dir_count == 0)
 	{
-		fprintf (stderr, "nothing to watch!?\n");
+		log_e ("nothing to watch!?\n");
 		return -1;
 	}
 
 	if (config->type == 0)
 	{
-		fprintf (stderr, "Must watch content, directory or both. ");
-		fprintf (stderr, "You have selected neither!?\n");
+		log_e ( "Must watch content, directory or both. You have selected neither!?");
 		return -1;
 	}
 
 
-	if (event_handling_init(config->min_read_close))
+	if (event_handling_init(config))
 	{
-		fprintf (stderr, "Failed to initiate event_handling ");
+		log_e("Failed to initiate event_handling ");
 		return -1;
 	}
 
+	char l[FILENAME_MAX];
 	for (int i = 0; i < config->watch_dir_count; ++i)
 	{
 		if (strlen(config->watch_dir[i]) == 0)
 		{
-			fprintf(stderr,"empty watch_dir");
+			log_w("empty watch_dir");
 			continue;
 		}
 
-		printf("to be watched: %s\n",config->watch_dir[i]);
+
+		memcpy(l,"\0",sizeof(char) * FILENAME_MAX);
+		strcpy(l,"to be watched: ");
+		strcat(l,config->watch_dir[i]);
+		log_d(l);
 
 		wd = inotify_add_watch (fd, config->watch_dir[i], config->fire_on);
 
 		if (wd < 0)
 		{
-			handle_error (errno);
 			return -1;
 		}
 
@@ -155,7 +150,7 @@ int add_to_map(const char * const to_be_watched,
 {
 	if (name_map_len >= MAX_WATCH)
 	{
-		handle_error(2);
+		log_e("TO MANY DIRS TO WATCH. MAX_WATCH = 1025");
 		return -1;
 	}
 	strcpy(name_map[name_map_len].name, to_be_watched);
@@ -193,7 +188,7 @@ void get_event (int fd)
 		const WD_NAME_TUPLE *tuple = NULL;
 		if ((tuple = find_in_map(pevent->wd)) == NULL)
 		{
-			fprintf(stderr,"couldn't find the event that fired!?");
+			log_w("couldn't find the event that fired!?");
 			continue;
 		}
 
@@ -226,15 +221,9 @@ void get_event (int fd)
 		event.event_type = pevent->mask;
 
 		if (event_handling_add_event(&event)){
-			fprintf(stderr,"failed to add event!");
+			log_e("failed to add event!");
 			return;
 		}
 	}
-
-}
-
-void handle_error (int error)
-{
-	fprintf (stderr, "Error: %s\n", strerror(error));
 
 }
