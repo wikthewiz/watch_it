@@ -97,7 +97,8 @@ int begin_watch(const struct conf * const config)
 
 	if (config->type == 0)
 	{
-		syslog(LOG_ERR, "Must watch content, directory or both. You have selected neither!?");
+		syslog(LOG_ERR, "Must watch content, directory or both. You have \
+						selected neither!?");
 		return -1;
 	}
 

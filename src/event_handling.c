@@ -127,7 +127,8 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			e->timestamp < f->open_timestamp )
 		{
-			syslog(LOG_WARNING,"trying to set a close_timestamp that is before open!");
+			syslog(LOG_WARNING,"trying to set a close_timestamp that is \
+							    before open!");
 		}
 
 		f->close_timestamp = e->timestamp;
@@ -137,7 +138,8 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			f->close_timestamp < e->timestamp )
 		{
-			syslog(LOG_WARNING,"trying to set a open_timestamp that is after close!");
+			syslog(LOG_WARNING,"trying to set a open_timestamp that is after \
+							    close!");
 		}
 		f->open_timestamp = e->timestamp;
 	}
@@ -154,7 +156,8 @@ static inline void close_file(FILE_LIST *file_to_close,
 {
 	if (file_to_close->file->open_timestamp > timestamp)
 	{
-		syslog(LOG_WARNING,"[close_file] trying to set a close_timestamp that is before open!");
+		syslog(LOG_WARNING,"[close_file] trying to set a close_timestamp that\
+					   	    is before open!");
 	}
 
 	file_to_close->file->is_closed = 1;
@@ -166,7 +169,8 @@ static inline void reset_to_open(FILE_LIST *file_to_open,
 {
 	if (file_to_open->file->close_timestamp == UINT32_MAX)
 	{
-		syslog(LOG_WARNING,"trying to reset file that has not been closed!?!?");
+		syslog(LOG_WARNING,"trying to reset file that has not been \
+						    closed!?!?");
 	}
 	file_to_open->file->is_closed = 0;
 	file_to_open->file->close_timestamp = UINT32_MAX;
@@ -179,8 +183,10 @@ long unsigned int event_handling_get_tick()
 	int errCode = 0;
 	if ((errCode = clock_gettime(0, &start)))
 	{
-		syslog(LOG_WARNING,"FAILED to get current tick in:\
-						    event_handling_get_tick. \n\tcause:%s",strerror(errno));
+		syslog(LOG_WARNING,
+			   "FAILED to get current tick in:\
+			    event_handling_get_tick. \n\tcause:%s",
+			   strerror(errno));
 		return 0;
 	}
 
@@ -356,13 +362,15 @@ void execute_open_event(FILE_EVENT *f)
 
 	if (f->has_fired_open)
 	{
-		syslog(LOG_ERR,"execute open, even thought it already has been executed");
+		syslog(LOG_ERR,"execute open, even thought it already has been\
+					   	executed");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
-		syslog(LOG_ERR,"execute open, even thought close has already been executed");
+		syslog(LOG_ERR,"execute open, even thought close has already been\
+					   	executed");
 		return;
 	}
 
@@ -399,7 +407,8 @@ void execute_close_event(FILE_EVENT *f)
 
 	if (f->has_fired_closed)
 	{
-		syslog(LOG_ERR,"execute close, even thought close has already been executed");
+		syslog(LOG_ERR,"execute close, even thought close has already been\
+					   	executed");
 		return;
 	}
 
