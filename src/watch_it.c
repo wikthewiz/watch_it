@@ -1,5 +1,6 @@
 /**
  * WATCH_IT.c
+ * This is the entry point for the daemon
  */
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,9 +39,47 @@ WD_NAME_TUPLE* find_in_map(int wd);
 void init_name_map();
 void init_wd_name_tuple(WD_NAME_TUPLE *tuple);
 
-
 int main (int argc, char *argv[])
 {
+    /**
+     * DAEMON specific init
+     */
+    pid_t pid, sid;	
+    pid = fork();
+    if (pid < 0) 
+    {
+       exit(EXIT_FAILURE);
+    }
+    if (pid > 0)
+   	{
+        // Lets exit the parent thread
+        exit(EXIT_SUCCESS);
+    }
+
+    umask(0);
+
+    openlog("watch_it",0,0);
+
+    if ((sid = setsid()) < 0)
+    {
+        syslog(LOG_ERR,"setsid() FAILED:\n\tcause:%s",strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    if ((chdir("/")) < 0)
+    {
+        syslog(LOG_ERR,"chdir(\"/\") FAILED:\n\tcause:%s",strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    /**
+     * WATCH_IT specific init
+     */
+
 	struct conf *config = config_load();
 	if (config == NULL)
 	{
@@ -52,8 +91,10 @@ int main (int argc, char *argv[])
 	int res = begin_watch(config);
 	config_free(config);
 	syslog(LOG_WARNING,"exit");
-	return res;
 
+	closelog();
+	exit(res ? EXIT_FAILURE : EXIT_SUCCESS);
+	return 0;
 }
 
 void init_name_map()
@@ -225,5 +266,4 @@ void get_event (int fd)
 			return;
 		}
 	}
-
 }
