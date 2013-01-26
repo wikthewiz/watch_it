@@ -4,7 +4,7 @@
 
 # compiler settings
 CC = gcc
-CFLAGS = -Wall -pedantic -std=gnu99
+CFLAGS = -Wall -pedantic -std=gnu99 -Iinclude
 
 # CMD
 REMOVE = rm -v

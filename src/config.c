@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <syslog.h>
 
 static inline int equals(const char * const val, const char * const other)
 {
@@ -38,13 +39,7 @@ int is_dir(char *dirName)
 	struct stat buf;
 	if (lstat(dirName,&buf))
 	{
-		char c[1024];
-		memset(c,'\0',sizeof(char) * 1024);
-		sprintf(c,
-				"FAILED: lstat(%s): \n\tcause:%s\n",
-			    dirName,
-				strerror(errno));
-		log_e(c);
+		syslog(LOG_ERR,"FAILED: lstat(%s): \n\tcause:%s",dirName,strerror(errno));
 		return -1;
 	}
 
@@ -102,7 +97,7 @@ int write_to_watchdir(struct conf *config, char *pch)
 			(char*) malloc(sizeof(char) * strlen(pch) + 1);
 	if (config->watch_dir[config->watch_dir_count] == NULL )
 	{
-		fprintf(stderr,"FAILD: Faild to malloc:\n");
+		syslog(LOG_ERR,"FAILD: Faild to malloc:%s",strerror(errno));
 		return -1;
 	}
 	strcpy((config->watch_dir[config->watch_dir_count]), pch);
@@ -159,7 +154,6 @@ int load_watch_dir(dictionary *dict, struct conf *config)
 	char *def = "";
 	char *watch_dir = "folder:watch_dir";
 	strcpy(copy_of_val, iniparser_getstring(dict, watch_dir, def));
-	printf("watch_dir val:%s\n", copy_of_val);
 	char* pch = strtok(copy_of_val, ", ");
 	while (pch != NULL )
 	{
@@ -240,7 +234,7 @@ int load_fire_on(dictionary* dict, struct conf* config)
 		}
 		else
 		{
-			fprintf(stderr, "unknown option:%s\n", pch);
+			syslog(LOG_ERR,"unknown option:%s",pch);
 			return -1;
 		}
 		pch = strtok(NULL, " |");
@@ -318,9 +312,7 @@ struct conf* config_load()
 	int res = 0;
 	if( (res = access( CONFIG_FILE, R_OK )))
 	{
-		fprintf (stderr,"FAILED to access: %s\n\tcause:%s\n",
-				  CONFIG_FILE,
-				  strerror( errno ));
+		syslog(LOG_ERR,"FAILED to access: %s\n\tcause:%s",CONFIG_FILE,strerror(errno));
 		return NULL;
 	}
 

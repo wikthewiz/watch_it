@@ -11,7 +11,7 @@
 #include <sys/inotify.h>
 #include <errno.h>
 #include <math.h>
-#include "log.h"
+#include <syslog.h>
 
 
 #define EOWNERDEAD_MSG "The mutex is a robust mutex and the process\
@@ -78,13 +78,13 @@ static inline long unsigned int calc_open_delta(FILE_LIST* orig)
 	long unsigned int cur_tick = event_handling_get_tick();
 	if (orig == NULL || orig->file == NULL)
 	{
-		log_w("NULL error in calc_open_delta");
+		syslog(LOG_WARNING,"NULL error in calc_open_delta");
 		return 0;
 	}
 
 	if (cur_tick < orig->file->open_timestamp )
 	{
-		log_w("cur_tick is before timestamp: calc_open_delta");
+		syslog(LOG_WARNING,"cur_tick is before timestamp: calc_open_delta");
 		return 0;
 	}
 
@@ -127,7 +127,7 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			e->timestamp < f->open_timestamp )
 		{
-			log_w("trying to set a close_timestamp that is before open!");
+			syslog(LOG_WARNING,"trying to set a close_timestamp that is before open!");
 		}
 
 		f->close_timestamp = e->timestamp;
@@ -137,13 +137,13 @@ static inline int copy_event_to_file(EVENT *e, FILE_EVENT *f)
 		if (f->close_timestamp != UINT32_MAX &&
 			f->close_timestamp < e->timestamp )
 		{
-			log_w("trying to set a open_timestamp that is after close!");
+			syslog(LOG_WARNING,"trying to set a open_timestamp that is after close!");
 		}
 		f->open_timestamp = e->timestamp;
 	}
 	else
 	{
-		log_e("FAILED to copy event to a file");
+		syslog(LOG_ERR,"FAILED to copy event to a file");
 		return -1;
 	}
 	return 0;
@@ -154,7 +154,7 @@ static inline void close_file(FILE_LIST *file_to_close,
 {
 	if (file_to_close->file->open_timestamp > timestamp)
 	{
-		log_w("[close_file] trying to set a close_timestamp that is before open!");
+		syslog(LOG_WARNING,"[close_file] trying to set a close_timestamp that is before open!");
 	}
 
 	file_to_close->file->is_closed = 1;
@@ -166,7 +166,7 @@ static inline void reset_to_open(FILE_LIST *file_to_open,
 {
 	if (file_to_open->file->close_timestamp == UINT32_MAX)
 	{
-		log_w("trying to reset file that has not been closed!?!?");
+		syslog(LOG_WARNING,"trying to reset file that has not been closed!?!?");
 	}
 	file_to_open->file->is_closed = 0;
 	file_to_open->file->close_timestamp = UINT32_MAX;
@@ -179,11 +179,8 @@ long unsigned int event_handling_get_tick()
 	int errCode = 0;
 	if ((errCode = clock_gettime(0, &start)))
 	{
-		char c[1024];
-		memset(c,'\0',sizeof(char) * 1024);
-		sprintf(c,"FAILED to get current tick in: \
-					     event_handling_get_tick. Error code: %i", errCode);
-		log_w(c);
+		syslog(LOG_WARNING,"FAILED to get current tick in:\
+						    event_handling_get_tick. \n\tcause:%s",strerror(errno));
 		return 0;
 	}
 
@@ -192,7 +189,7 @@ long unsigned int event_handling_get_tick()
 
 	if (last_tick > cur_tick)
 	{
-		log_w("FAILED last_tick is greater then cur tick!!");
+		syslog(LOG_WARNING,"FAILED last_tick is greater then cur tick!!");
 		return last_tick;
 	}
 
@@ -359,13 +356,13 @@ void execute_open_event(FILE_EVENT *f)
 
 	if (f->has_fired_open)
 	{
-		log_e("execute open, even thought it already has been executed");
+		syslog(LOG_ERR,"execute open, even thought it already has been executed");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
-		log_e("execute open, even thought close has already been executed");
+		syslog(LOG_ERR,"execute open, even thought close has already been executed");
 		return;
 	}
 
@@ -375,10 +372,7 @@ void execute_open_event(FILE_EVENT *f)
 
 		if (system(cmd_to_execure))
 		{
-			char c[1024];
-			memset(c,'\0',sizeof(char) * 1024);
-			sprintf(c,"*EXECUTE open:%s FAILED", cmd_to_execure);
-			log_e(c);
+			syslog(LOG_ERR,"*EXECUTE open:%s FAILED", cmd_to_execure);
 		}
 		free(cmd_to_execure);
 	}
@@ -386,10 +380,7 @@ void execute_open_event(FILE_EVENT *f)
 	{
 		if (system(open_cmd))
 		{
-			char c[1024];
-			memset(c, '\0', sizeof(char) * 1024);
-			sprintf(c, "*EXECUTE open:%s FAILED", open_cmd);
-			log_e(c);
+			syslog(LOG_ERR,"*EXECUTE open:%s FAILED",open_cmd);
 		}
 	}
 
@@ -402,13 +393,13 @@ void execute_close_event(FILE_EVENT *f)
 		if (strlen(close_cmd) == 0) return;
 	if (!f->has_fired_open)
 	{
-		log_e("execute close, even thought open hasn't been fired!");
+		syslog(LOG_ERR,"execute close, even thought open hasn't been fired!");
 		return;
 	}
 
 	if (f->has_fired_closed)
 	{
-		log_e("execute close, even thought close has already been executed");
+		syslog(LOG_ERR,"execute close, even thought close has already been executed");
 		return;
 	}
 
@@ -417,10 +408,7 @@ void execute_close_event(FILE_EVENT *f)
 		char *cmd_to_execure = str_replace(close_cmd, "@0", f->name);
 		if (system(cmd_to_execure))
 		{
-			char c[1024];
-			memset(c, '\0', sizeof(char) * 1024);
-			sprintf(c, "*EXECUTE close:%s FAILED\n", cmd_to_execure);
-			log_e(c);
+			syslog(LOG_ERR,"*EXECUTE close:%s FAILED\n", cmd_to_execure);
 		}
 
 		free(cmd_to_execure);
@@ -429,10 +417,7 @@ void execute_close_event(FILE_EVENT *f)
 	{
 		if (system(close_cmd))
 		{
-			char c[1024];
-			memset(c, '\0', sizeof(char) * 1024);
-			sprintf(c, "*EXECUTE close:%s FAILED", close_cmd);
-			log_e(c);
+			syslog(LOG_ERR,"*EXECUTE close:%s FAILED\n",close_cmd);
 		}
 	}
 
@@ -466,37 +451,31 @@ void wait_for_producer(long unsigned int max_wait_time)
 
 	if ((wres = pthread_cond_timedwait( &wait_cond, &mutex ,&timeToWait)))
 	{
-		char c[1024];
-		memset(c, '\0', sizeof(char) * 1024);
 		switch(wres)
 		{
 		case ENOTRECOVERABLE:
-			sprintf(c,
-					"pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
-					wres,
-					"The state protected by the mutex is not recoverable.");
-			log_e(c);
+			syslog(LOG_ERR,
+				   "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
+				  	wres,
+				  	"The state protected by the mutex is not recoverable.");
 			break;
 		case EOWNERDEAD:
-			sprintf(c,
-					"pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
-					wres,
-					EOWNERDEAD_MSG);
-			log_e(c);
+			syslog(LOG_ERR,
+				   "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
+				   wres,
+				   EOWNERDEAD_MSG);
 		break;
 		case EPERM:
-			sprintf(c,
-					 "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
-					 wres,
-					 EPERM_MSG);
-			log_e(c);
+			syslog(LOG_ERR,
+				   "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
+				   wres,
+				   EPERM_MSG);
 			break;
 		case EINVAL:
-			sprintf(c,
-				     "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
-				     wres,
-				     EINVAL_MSG);
-			log_e(c);
+			syslog(LOG_ERR,
+				   "pthread_cond_timedwait failed to wait:\n\terr:%i\n\t%s\n",
+				   wres,
+				   EINVAL_MSG);
 			break;
 		default:break;
 		}
@@ -566,7 +545,7 @@ int event_handling_add_event(EVENT *event)
 			{
 				if (add_new_file(&file_to_add))
 				{
-					log_e("FAILED to open file. I will skip this!");
+					syslog(LOG_ERR,"FAILED to open file. I will skip this!");
 					res = -1;
 				}
 			}
@@ -667,7 +646,7 @@ int event_handling_init(const struct conf const *config)
 	last_tick = 0;
 	if ( pthread_create( &consumer_thread, NULL, &consumer, NULL) )
 	{
-		log_e("failed to create consumer thread");
+		syslog(LOG_ERR,"failed to create consumer thread");
 		return -1;
 	}
 	return 0;
