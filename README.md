@@ -13,6 +13,7 @@ Build
 =====
 
 To build run: `make all`
+To start, run: `./watch_it`
 
 Logging
 =======
