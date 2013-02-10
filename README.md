@@ -15,7 +15,7 @@ Build
 
 To build run make all
 
-Logging will be done in syslog under watch_it. For more info on syslog run: man syslog 
+Logging will be done in syslog under watch_it. For more info on syslog run: >man syslog 
 
 Config
 ======
@@ -55,13 +55,13 @@ watch_dir="test, test2"
 #	 CLOSE 
 fire_on="OPEN|CLOSE"
 
-# min_read_close is the minimun time in milliseconds between read and a close
+# min_read_close is the minimum time in milliseconds between read and a close
 # event that must elapse before firing an open event. This is because when 
 # just open an directory all files are read and then close. So if you want 
 # these events as well you must set this to 0. Also when open a text document
-# it is not continuesl held open therefor it will not fire any open events if
+# it is not continual held open therefor it will not fire any open events if
 # this is something other then 0.
-# an example:
+# Example:
 #  A file is read and close in under min_read_close -> This will not fire
 min_read_close=200 ; time in milleseconds
 
