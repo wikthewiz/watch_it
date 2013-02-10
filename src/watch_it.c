@@ -49,7 +49,8 @@ int main (int argc, char *argv[])
     pid = fork();
     if (pid < 0) 
     {
-       exit(EXIT_FAILURE);
+		printf("FAILED to fork()");
+		exit(EXIT_FAILURE);
     }
     if (pid > 0)
    	{
@@ -60,6 +61,8 @@ int main (int argc, char *argv[])
     umask(0);
 
     openlog("watch_it",0,0);
+
+    syslog(LOG_DEBUG,"\nStarting watch_it\n");
 
     if ((sid = setsid()) < 0)
     {

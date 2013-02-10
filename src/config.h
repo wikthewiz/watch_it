@@ -1,8 +1,5 @@
 /*
  * config.h
- *
- *  Created on: 16 Nov 2012
- *      Author: CONSEO\mawi
  */
 
 #ifndef CONFIG_H_
