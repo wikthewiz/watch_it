@@ -13,6 +13,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/inotify.h>
+#include <stdlib.h>
 
 
 /* Allow for 1024 simultaneous events */

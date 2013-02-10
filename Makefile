@@ -17,7 +17,7 @@ NAME = watch_it
 SRC_DIR = src
 INIPARSER_DIR = $(SRC_DIR)/iniparser
 
-SRCS := $(wildcard $(INIPARSER_DIR)/*.c) $(wildcard $(SRC_DIR)/*.c) 
+SRCS = $(wildcard $(INIPARSER_DIR)/*.c) $(wildcard $(SRC_DIR)/*.c) 
 DEPS = $(SRCS:.c=.h)
 OBJ_DIR = obj
 OBJS = $(SRCS:.c=.o)
