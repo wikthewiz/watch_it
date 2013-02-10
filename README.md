@@ -12,8 +12,9 @@ You can use any IDE but I've used eclipse and has therefore included the eclipse
 Build
 =====
 
-To build run: `make all`
-To start, run: `./watch_it`
+ To build run: `make all`
+ 
+ To start run: `./watch_it`
 
 Logging
 =======
