@@ -37,7 +37,7 @@ And here is an example config file:
 ```ini
 	# Each rule in [folder] will be applied on watch _ir.
 	# To apply change changes, you must restart watch_it
-	# ; - is comment and will not be read
+	# ; - is a comment and will not be read
 
 	[folder]
 	
