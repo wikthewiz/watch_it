@@ -1,0 +1,31 @@
+# Each rule in [folder] will be applied on watch _ir.
+# To apply change changes, you must restart watch_it
+# ; - is comment and will not be read
+
+[folder]
+
+# The comma seperated list of directories to watch.
+watch_dir="test, test2" 
+
+
+# can be any of 
+#    OPEN	this will fire once on starting to read or write
+#	 CLOSE 
+fire_on="OPEN|CLOSE"
+
+# min_read_close is the minimum time in milliseconds between read and a close
+# event that must elapse before firing an open event. This is because when 
+# just open an directory all files are read and then close. So if you want 
+# these events as well you must set this to 0. Also when open a text document
+# it is not continual held open therefor it will not fire any open events if
+# this is something other then 0.
+# Example:
+#  A file is read and close in under min_read_close -> This will not fire
+min_read_close=200 ; time in milleseconds
+
+recursive=true ; if set to true it will recursively watch all contents
+
+# open_command is the command that will be called on open. @0 will be replaced
+# with the file or dir that triggered to event
+open_command=echo "this is echo open @0"    ; command called on open
+close_command=echo "this is echo! close @0" ; command called on close
