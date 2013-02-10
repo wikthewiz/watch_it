@@ -23,8 +23,10 @@ Logging will be done in syslog under watch_it. For more info on syslog run: `man
 Config
 ======
 
-To use this application you need a config file named watch_it.conf in /etc:
+To use this application you need a config file named `watch_it.conf` in `/etc`:
+```
 	/etc/watch_it.conf
+```
 Here is the list of config options and a short desription:
 
 
@@ -37,7 +39,7 @@ Here is the list of config options and a short desription:
 |open_command   | The command to execute on `OPEN`. `@0` will be replaced with the file that triggerd the event|
 |close_command  | The command to execute on `CLOSE`. `@0` will be replaced with the file that triggerd the event|
 
-And here is an example config file:
+And here is an example `/etc/watch_it.conf`:
 ```ini
 	# Each rule in [folder] will be applied on watch _ir.
 	# To apply change changes, you must restart watch_it
@@ -46,7 +48,7 @@ And here is an example config file:
 	[folder]
 	
 	# The comma seperated list of directories to watch.
-	watch_dir="test, test2" 
+	watch_dir="/path/to/test, /path/to/test2" 
 
 
 	# can be any of 
