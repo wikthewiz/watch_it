@@ -18,7 +18,7 @@
 
 #define MAX_WATCH 1024
 
-#define CONFIG_FILE "./config"
+#define CONFIG_FILE "/etc/watch_it.conf"
 
 struct conf{
 	char **watch_dir;

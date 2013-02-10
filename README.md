@@ -23,7 +23,9 @@ Logging will be done in syslog under watch_it. For more info on syslog run: `man
 Config
 ======
 
-To use this application you need a config file named config which must be in the same dir as the executable. Here is the list of config options and a short desription:
+To use this application you need a config file named watch_it.conf in /etc:
+	/etc/watch_it.conf
+Here is the list of config options and a short desription:
 
 
 | command       | description |
