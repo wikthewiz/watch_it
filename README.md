@@ -33,7 +33,7 @@ Here is the list of config options and a short desription:
 | command       | description |
 |---------------|:------------|
 |warch_it       | Holds a list of folders to watch| 
-|fire_on        | Is the list of event to fire. `OPEN` or `CLOSE`|
+|fire_on        | Is the list of events to fire. `OPEN` or `CLOSE`|
 |min_read_close| Is the minimum time in milliseconds between read and close events that must elapse before firing `open_command`|
 |recursive      |  Is a boolean telling if we should recursivle watch all under folders|
 |open_command   | The command to execute on `OPEN`. `@0` will be replaced with the file that triggerd the event|
