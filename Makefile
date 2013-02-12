@@ -4,13 +4,13 @@
 
 # compiler settings
 CC = gcc
-CFLAGS = -Wall -pedantic -std=gnu99 -Iinclude
+CFLAGS = -D_FILE_OFFSET_BITS=64 -Wall -pedantic -std=gnu99 -Iinclude
 
 # CMD
 REMOVE = rm -v
 
 # Linker settings
-LDLIBS = -lrt -lpthread
+LDLIBS = -lrt -lpthread 
 
 # PATH
 NAME = watch_it
