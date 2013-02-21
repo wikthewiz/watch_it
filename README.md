@@ -77,4 +77,5 @@ And here is an example `/etc/watch_it.conf`:
 This is work in progress more to come
 
  * TODO: Autoconfig
- * TODO: Add vidoe record command
+ * Coming soon: python wrapper for 
+  	`record start` and `record stop`
