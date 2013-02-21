@@ -269,7 +269,7 @@ struct conf* allocate_config(dictionary *dict)
 	return config;
 }
 
-static inline int alloc_cmd(const char const* cmd, dictionary *dict, char **to_be_malloc)
+static inline int alloc_cmd(const char *cmd, dictionary *dict, char **to_be_malloc)
 {
 	char *def = "";
 	int len = strlen(iniparser_getstring(dict, cmd, def));
